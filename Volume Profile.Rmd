@@ -1,0 +1,108 @@
+---
+
+title: ''
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(xts)
+library(quantmod)
+library(plotly)
+library(ggplot2)
+library(reactable)
+library(tidyr)
+library(purrr)
+library(plotly)
+```
+
+#
+```{r}
+BTC <- getSymbols("BTC-USD", auto.assign = F)
+names(BTC) <- c("Open", "High", "Low", "Close", "Volume", "Adjusted")
+BTC <- data.frame(Date = index(BTC), coredata(BTC))
+```
+
+```{r}
+BTC_Long <- BTC %>%
+  pivot_longer(-c("Date" ,"Volume", "Adjusted"), names_to = "Type", values_to = "Price")
+
+ggplotly(BTC_Long %>%
+  ggplot(aes(log(Volume), Price)) +
+  scale_y_log10() +
+  geom_point(alpha = .1,  color = "blue"))
+
+ggplotly(BTC_Long %>%
+  ggplot(aes(Price)) +
+  geom_histogram(binwidth = 100) + 
+    coord_flip())
+```
+
+
+```{r}
+fig1 <- plot_ly(BTC, x=~Date, type = "candlestick", 
+        open =~Open, close =~Close,
+        high =~High, low =~Low) %>%
+  layout(xaxis = list(rangeslider = list(visible = F)))
+fig2 <- plot_ly(BTC_Long,  y =~Price, type = "histogram", orientation = "h", nbinsy = 1000)
+subplot(fig2, fig1, shareY = T)
+```
+
+
+```{r}
+lookback = 210
+bins = 500
+binwidth = 100
+centers = 7
+
+##
+t <- BTC_Long %>% slice_tail(n = 4*lookback) %>%
+  mutate(bins = floor(Price/binwidth)*binwidth) %>%
+  count(bins) %>%
+  drop_na()
+
+BTC_LB <- BTC %>% slice_tail(n = lookback)
+
+##
+SR <- kmeans(t, centers = centers, nstart = 10000)
+SR_df <- expand_grid(data.frame(bins = SR$centers[,1], avg_count = SR$centers[,2], center = 1:centers), Date= BTC_LB$Date)
+
+##
+POC <- BTC_Long %>% slice_tail(n = 4*lookback) %>%
+  mutate(bins = floor(Price/binwidth)*binwidth) %>%
+  count(bins) %>%
+  top_n(n, n = 1)
+
+##
+fig11 <-  BTC_LB %>%
+  plot_ly(x=~Date, type = "candlestick", 
+        open =~Open, close =~Close,
+        high =~High, low =~Low, name = "Price") %>%
+  layout(xaxis = list(rangeslider = list(visible = F))) %>%
+  add_trace(x=~Date, y=~POC$bins, type = "scatter", mode = "lines", name = "POC")
+
+##
+fig11 <- fig11 %>% add_trace(x=~SR_df$Date, y=~SR_df$bins, color=~factor(SR_df$center), type = "scatter", mode = "lines", name =~SR_df$bins)
+
+
+##
+fig22 <- BTC_Long %>% slice_tail(n = 4*lookback) %>%
+  plot_ly(y =~Price, type = "histogram", orientation = "h", nbinsy = bins, name = "VP")
+
+##
+subplot(fig22, fig11, shareY = T, widths = c(0.2,0.7))
+```
+```{r}
+test <- BTC_Long %>% slice_tail(n = 365) %>%
+  mutate(bins = floor(Price/50)*50) %>%
+  count(bins) %>%
+  drop_na()
+
+k_test <- kmeans(test, centers = 4)
+ggplot(test, aes(x = scale(n), y = bins, col = factor(k_test$cluster))) +
+  geom_point() +
+  scale_y_log10()
+
+```
