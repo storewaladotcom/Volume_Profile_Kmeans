@@ -15,3 +15,12 @@ Volume profile, a histogram of high density trading areas found to the right of 
 
 ## Conclusion
 Based on the following images above, binning price data effectively produced a volume profile (seen on the left), and the K-means algorithm identified possible support and resistance levels; however, improvements can be done to see determine if there are better methods at identifying (S&R) whether it is with different alogrithms or the continued use of K-means.
+
+## Improvements
+I will return to this project for improvements which include but not limited to:
+    - Comparing different ML methods
+    - Altering weights for K-means algo
+    - Automating the Binning process
+    - Extracting levels without reprinting the graphs
+    - Back testing strategies
+    - Adding notes and setting up YAML options for fast reporting
